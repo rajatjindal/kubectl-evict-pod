@@ -79,7 +79,7 @@ storage-provisioner                1/1     Running   6          27d
 
 # now lets try to evict the pod again
 $ ./kubectl-evict-pod coredns-fb8b8dccf-826fh -n kube-system
-Error: Cannot evict pod as it would violate the pod's disruption budget.
+Error: Cannot evict pod as it would violate the pod\'s disruption budget.
 exit status 1
 
 # observe pods continue to run
