@@ -3,37 +3,24 @@ kind: Plugin
 metadata:
   name: evict-pod
 spec:
-  version: "{{ .TagName }}"
+  version: {{ .TagName }}
+  homepage: https://github.com/rajatjindal/kubectl-evict-pod
   platforms:
   - selector:
       matchLabels:
         os: darwin
         arch: amd64
-    {{addURIAndSha "https://github.com/rajatjindal/kubectl-evict-pod/releases/download/{{ .TagName }}/darwin-amd64-{{ .TagName }}.tar.gz" .TagName }}
-    files:
-    - from: "*"
-      to: "."
+    uri: {{addURIAndSha "https://github.com/rajatjindal/kubectl-evict-pod/releases/download/{{ .TagName }}/darwin-amd64-{{ .TagName }}.tar.gz" .TagName }}
     bin: kubectl-evict-pod
   - selector:
       matchLabels:
         os: linux
         arch: amd64
     {{addURIAndSha "https://github.com/rajatjindal/kubectl-evict-pod/releases/download/{{ .TagName }}/linux-amd64-{{ .TagName }}.tar.gz" .TagName }}
-    files:
-    - from: "*"
-      to: "."
     bin: kubectl-evict-pod
-  shortDescription: This plugin evicts the given pod
-  caveats: |
-    Usage:
-      kubectl evict-pod
-    
-    Read the documentation at:
-      https://github.com/rajatjindal/kubectl-evict-pod
+  shortDescription: Evicts the given pod
   description: |
     Usage:
-      kubectl evict-pod
-
-      This plugin evicts the given pod. useful for testing pod disruption budget rules
-  homepage: https://github.com/rajatjindal/kubectl-evict-pod
-
+      kubectl evict-pod <pod-name> -n <namespace-name>
+      This plugin evicts the given pod. This is particularly useful for testing pod disruption budget rules.
+      Read more documentation at: https://github.com/rajatjindal/kubectl-evict-pod
