@@ -10,7 +10,7 @@ spec:
       matchLabels:
         os: darwin
         arch: amd64
-    uri: {{addURIAndSha "https://github.com/rajatjindal/kubectl-evict-pod/releases/download/{{ .TagName }}/darwin-amd64-{{ .TagName }}.tar.gz" .TagName }}
+    {{addURIAndSha "https://github.com/rajatjindal/kubectl-evict-pod/releases/download/{{ .TagName }}/darwin-amd64-{{ .TagName }}.tar.gz" .TagName }}
     bin: kubectl-evict-pod
   - selector:
       matchLabels:
