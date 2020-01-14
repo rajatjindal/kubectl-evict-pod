@@ -1,0 +1,20 @@
+builds:
+- id: kubectl-evict-pod
+  main: ./
+  binary: kubectl-evict-pod
+  env:
+  - CGO_ENABLED=0
+  goos:
+  - darwin
+  - linux
+  goarch:
+  - amd64
+
+archives:
+- builds:
+  - kubectl-evict-pod
+  name_template: "{{ .ProjectName }}_{{ .Tag }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+  wrap_in_directory: false
+  format: tar.gz
+  files:
+  - LICENSE
