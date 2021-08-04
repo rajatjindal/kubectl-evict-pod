@@ -73,14 +73,12 @@ func NewCmdModifySecret(streams genericclioptions.IOStreams) *cobra.Command {
 // Complete sets all information required for updating the current context
 func (o *EvictPodOptions) Complete(cmd *cobra.Command, args []string) error {
 
-	if len(args) > 0 {
-
-		o.podNames = append(o.podNames, args[0])
+	if len(args) == 0 {
+		cmd.Help()
+		os.Exit(0)
 	}
 
-	if len(args) > 1 {
-		o.podNames = args
-	}
+	o.podNames = args
 
 	config, err := o.configFlags.ToRESTConfig()
 	if err != nil {
