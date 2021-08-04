@@ -123,9 +123,10 @@ func (o *EvictPodOptions) Run() error {
 		if err != nil {
 			return err
 		}
+
+		logrus.Infof("pod %s in namespace %s evicted successfully", podName, o.namespace)
 	}
 
-	logrus.Infof("pods %q in namespace %s evicted successfully", o.podNames, o.namespace)
 	return nil
 }
 
