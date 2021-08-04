@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/rajatjindal/kubectl-evict-pod/pkg/k8s"
 	"github.com/sirupsen/logrus"
@@ -117,6 +118,9 @@ func (o *EvictPodOptions) Run() error {
 	}
 
 	for _, podName := range o.podNames {
+		// remove the 'pod/' prefix, if it exists
+		podName = strings.TrimPrefix(podName, "pod/")
+
 		err := k8s.Evict(o.kubeclient, podName, o.namespace)
 		if err != nil {
 			return err
