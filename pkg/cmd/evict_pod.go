@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/rajatjindal/kubectl-evict-pod/pkg/k8s"
 	"github.com/sirupsen/logrus"
@@ -20,11 +21,11 @@ type EvictPodOptions struct {
 	configFlags *genericclioptions.ConfigFlags
 	iostreams   genericclioptions.IOStreams
 
-	args         []string
-	podName      string
+	podNames     []string
 	namespace    string
 	kubeclient   kubernetes.Interface
 	printVersion bool
+	label        string
 }
 
 // NewEvictPodOptions provides an instance of EvictPodOptions with default values
@@ -64,6 +65,7 @@ func NewCmdModifySecret(streams genericclioptions.IOStreams) *cobra.Command {
 	}
 
 	cmd.Flags().BoolVar(&o.printVersion, "version", false, "prints version of plugin")
+	cmd.Flags().StringVar(&o.label, "label", "", "specify a label to evict pods with")
 	o.configFlags.AddFlags(cmd.Flags())
 
 	return cmd
@@ -71,11 +73,13 @@ func NewCmdModifySecret(streams genericclioptions.IOStreams) *cobra.Command {
 
 // Complete sets all information required for updating the current context
 func (o *EvictPodOptions) Complete(cmd *cobra.Command, args []string) error {
-	o.args = args
 
-	if len(o.args) > 0 {
-		o.podName = o.args[0]
+	if len(args) == 0 {
+		cmd.Help()
+		os.Exit(0)
 	}
+
+	o.podNames = args
 
 	config, err := o.configFlags.ToRESTConfig()
 	if err != nil {
@@ -93,8 +97,9 @@ func (o *EvictPodOptions) Complete(cmd *cobra.Command, args []string) error {
 
 // Validate ensures that all required arguments and flag values are provided
 func (o *EvictPodOptions) Validate() error {
-	if len(o.args) != 1 {
-		return fmt.Errorf("only one argument expected. got %d arguments", len(o.args))
+
+	if len(o.podNames) > 0 && o.label != "" {
+		return fmt.Errorf("pod name cannot be provided when a selector is specified")
 	}
 
 	return nil
@@ -102,12 +107,28 @@ func (o *EvictPodOptions) Validate() error {
 
 // Run fetches the given secret manifest from the cluster, decodes the payload, opens an editor to make changes, and applies the modified manifest when done
 func (o *EvictPodOptions) Run() error {
-	err := k8s.Evict(o.kubeclient, o.podName, o.namespace)
-	if err != nil {
-		return err
+	var err error
+
+	if o.label != "" {
+
+		o.podNames, err = k8s.PodsFromLabel(o.kubeclient, o.label, o.namespace)
+		if err != nil {
+			return err
+		}
 	}
 
-	logrus.Infof("pod %q in namespace %s evicted successfully", o.podName, o.namespace)
+	for _, podName := range o.podNames {
+		// remove the 'pod/' prefix, if it exists
+		podName = strings.TrimPrefix(podName, "pod/")
+
+		err := k8s.Evict(o.kubeclient, podName, o.namespace)
+		if err != nil {
+			return err
+		}
+
+		logrus.Infof("pod %s in namespace %s evicted successfully", podName, o.namespace)
+	}
+
 	return nil
 }
 
