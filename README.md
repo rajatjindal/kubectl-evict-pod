@@ -1,8 +1,21 @@
 # kubectl-evict-pod
 
-This plugin evicts the given pod. useful for testing pod disruption budget rules
+This plugin evicts pods:
+- for testing pod disruption budget rules
+- safely restarting applications
 
 ## Usage
+
+- evict single pod: `kubectl evict-pod <pod-name> -n <namespace>`
+- show options: `kubectl evict-pod -h`
+
+## Install
+
+```
+kubectl krew install evict-pod
+```
+
+## Testing
 
 ### Pod evicted successfully scenario
 
@@ -11,34 +24,20 @@ This plugin evicts the given pod. useful for testing pod disruption budget rules
 $ kubectl get pods -n kube-system
 NAME                               READY   STATUS    RESTARTS   AGE
 coredns-fb8b8dccf-6wvj6            1/1     Running   0          10m
-coredns-fb8b8dccf-826fh            1/1     Running   0          9m55s
-etcd-minikube                      1/1     Running   3          27d
-kube-addon-manager-minikube        1/1     Running   13         27d
-kube-apiserver-minikube            1/1     Running   3          27d
-kube-controller-manager-minikube   1/1     Running   0          9h
-kube-proxy-cwwm8                   1/1     Running   3          27d
-kube-scheduler-minikube            1/1     Running   5          27d
-storage-provisioner                1/1     Running   6          27d
+coredns-fb8b8dccf-826fh            1/1     Running   0          11m
 
-# now lets evict the coredns pod
+# now lets evict 1 coredns pod
 $ ./kubectl-evict-pod coredns-fb8b8dccf-6wvj6 -n kube-system
 INFO[0000] pod "coredns-fb8b8dccf-6wvj6" in namespace kube-system evicted successfully 
 
-# observe that the pod has been evicted successfully
+# the pod has been evicted successfully
 $ kubectl get pods -n kube-system
 NAME                               READY   STATUS    RESTARTS   AGE
 coredns-fb8b8dccf-7ngmk            1/1     Running   0          42s
 coredns-fb8b8dccf-826fh            1/1     Running   0          11m
-etcd-minikube                      1/1     Running   3          27d
-kube-addon-manager-minikube        1/1     Running   13         27d
-kube-apiserver-minikube            1/1     Running   3          27d
-kube-controller-manager-minikube   1/1     Running   0          9h
-kube-proxy-cwwm8                   1/1     Running   3          27d
-kube-scheduler-minikube            1/1     Running   5          27d
-storage-provisioner                1/1     Running   6          27d
 ```
 
-### pod eviction prevented by pod disruption budget
+### Pod eviction prevented by pod disruption budget
 
 - create the pod disruption budget using following spec
 ```yaml
@@ -67,15 +66,8 @@ poddisruptionbudget.policy/coredns-pdb created
 # get existing pods
 $ kubectl get pods -n kube-system
 NAME                               READY   STATUS    RESTARTS   AGE
-coredns-fb8b8dccf-7ngmk            1/1     Running   0          4m6s
-coredns-fb8b8dccf-826fh            1/1     Running   0          14m
-etcd-minikube                      1/1     Running   3          27d
-kube-addon-manager-minikube        1/1     Running   13         27d
-kube-apiserver-minikube            1/1     Running   3          27d
-kube-controller-manager-minikube   1/1     Running   0          9h
-kube-proxy-cwwm8                   1/1     Running   3          27d
-kube-scheduler-minikube            1/1     Running   5          27d
-storage-provisioner                1/1     Running   6          27d
+coredns-fb8b8dccf-7ngmk            1/1     Running   0          10m
+coredns-fb8b8dccf-826fh            1/1     Running   0          11m
 
 # now lets try to evict the pod again
 $ ./kubectl-evict-pod coredns-fb8b8dccf-826fh -n kube-system
@@ -86,12 +78,5 @@ exit status 1
 $ kubectl get pods -n kube-system
 NAME                               READY   STATUS    RESTARTS   AGE
 coredns-fb8b8dccf-7ngmk            1/1     Running   0          10m
-coredns-fb8b8dccf-826fh            1/1     Running   0          21m
-etcd-minikube                      1/1     Running   3          27d
-kube-addon-manager-minikube        1/1     Running   13         27d
-kube-apiserver-minikube            1/1     Running   3          27d
-kube-controller-manager-minikube   1/1     Running   0          9h
-kube-proxy-cwwm8                   1/1     Running   3          27d
-kube-scheduler-minikube            1/1     Running   5          27d
-storage-provisioner                1/1     Running   6          27d
+coredns-fb8b8dccf-826fh            1/1     Running   0          11m
 ```
