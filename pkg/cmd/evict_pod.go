@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/rajatjindal/kubectl-evict-pod/pkg/k8s"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"k8s.io/api/policy/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
@@ -109,14 +109,14 @@ func (o *EvictPodOptions) Run() error {
 
 	if o.labelSelector != "" || o.fieldSelector != "" {
 		options := v1.ListOptions{LabelSelector: o.labelSelector, FieldSelector: o.fieldSelector}
-		o.podNames, err = listPods(o.kubeclient, o.namespace, options)
+		o.podNames, err = k8s.ListPods(o.kubeclient, o.namespace, options)
 		if err != nil {
 			return err
 		}
 	}
 
 	for _, podName := range o.podNames {
-		err := Evict(o.kubeclient, podName, o.namespace)
+		err := k8s.Evict(o.kubeclient, podName, o.namespace)
 		if err != nil {
 			return err
 		}
@@ -134,26 +134,4 @@ func getNamespace(flags *genericclioptions.ConfigFlags) string {
 		namespace = "default"
 	}
 	return namespace
-}
-
-// Evict tries to evict a pod
-func Evict(kubeclient kubernetes.Interface, podname, namespace string) error {
-	return kubeclient.PolicyV1beta1().Evictions(namespace).Evict(&v1beta1.Eviction{
-		ObjectMeta: v1.ObjectMeta{
-			Name:      podname,
-			Namespace: namespace,
-		},
-	})
-}
-
-// listPods get pods with labelSelector
-func listPods(kubeclient kubernetes.Interface, namespace string, options v1.ListOptions) (podNames []string, err error) {
-	podList, err := kubeclient.CoreV1().Pods(namespace).List(options)
-	if err != nil {
-		return
-	}
-	for _, pod := range podList.Items {
-		podNames = append(podNames, pod.Name)
-	}
-	return
 }
