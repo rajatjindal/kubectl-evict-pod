@@ -7,41 +7,42 @@ import (
 	"github.com/rajatjindal/kubectl-evict-pod/pkg/k8s"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
-//Version is set during build time
+// Version is set during build time
 var Version = "unknown"
 
-//EvictPodOptions is struct for modify secret
 type EvictPodOptions struct {
 	configFlags *genericclioptions.ConfigFlags
-	iostreams   genericclioptions.IOStreams
+	ioStreams   genericclioptions.IOStreams
 
-	args         []string
-	podName      string
-	namespace    string
-	kubeclient   kubernetes.Interface
-	printVersion bool
+	podNames      []string
+	namespace     string
+	kubeclient    kubernetes.Interface
+	printVersion  bool
+	labelSelector string
+	fieldSelector string
 }
 
 // NewEvictPodOptions provides an instance of EvictPodOptions with default values
 func NewEvictPodOptions(streams genericclioptions.IOStreams) *EvictPodOptions {
 	return &EvictPodOptions{
 		configFlags: genericclioptions.NewConfigFlags(true),
-		iostreams:   streams,
+		ioStreams:   streams,
 	}
 }
 
-// NewCmdModifySecret provides a cobra command wrapping EvictPodOptions
-func NewCmdModifySecret(streams genericclioptions.IOStreams) *cobra.Command {
+// NewEvictCmd provides a cobra command wrapping EvictPodOptions
+func NewEvictCmd(streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewEvictPodOptions(streams)
 
 	cmd := &cobra.Command{
 		Use:          "evict-pod [flags]",
-		Short:        "evict the pod selected by name or labels",
+		Short:        "evict selected pods",
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			if o.printVersion {
@@ -49,7 +50,7 @@ func NewCmdModifySecret(streams genericclioptions.IOStreams) *cobra.Command {
 				os.Exit(0)
 			}
 
-			if err := o.Complete(c, args); err != nil {
+			if err := o.Complete(args); err != nil {
 				return err
 			}
 			if err := o.Validate(); err != nil {
@@ -64,18 +65,16 @@ func NewCmdModifySecret(streams genericclioptions.IOStreams) *cobra.Command {
 	}
 
 	cmd.Flags().BoolVar(&o.printVersion, "version", false, "prints version of plugin")
+	cmd.Flags().StringVarP(&o.labelSelector, "labelSelector", "l", "", "labelSelector to evict pods with")
+	cmd.Flags().StringVar(&o.labelSelector, "fieldSelector", "", "fieldSelector to evict pods with")
 	o.configFlags.AddFlags(cmd.Flags())
 
 	return cmd
 }
 
-// Complete sets all information required for updating the current context
-func (o *EvictPodOptions) Complete(cmd *cobra.Command, args []string) error {
-	o.args = args
-
-	if len(o.args) > 0 {
-		o.podName = o.args[0]
-	}
+// Complete sets all config options
+func (o *EvictPodOptions) Complete(args []string) error {
+	o.podNames = args
 
 	config, err := o.configFlags.ToRESTConfig()
 	if err != nil {
@@ -91,10 +90,14 @@ func (o *EvictPodOptions) Complete(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Validate ensures that all required arguments and flag values are provided
+// Validate ensures that config options are correct
 func (o *EvictPodOptions) Validate() error {
-	if len(o.args) != 1 {
-		return fmt.Errorf("only one argument expected. got %d arguments", len(o.args))
+	if len(o.podNames) > 0 && (o.labelSelector != "" || o.fieldSelector != "") {
+		return fmt.Errorf("pod name cannot be provided when a selector is specified")
+	}
+
+	if len(o.podNames) == 0 && o.labelSelector == "" && o.fieldSelector == "" {
+		return fmt.Errorf("nothing given to select pods")
 	}
 
 	return nil
@@ -102,12 +105,25 @@ func (o *EvictPodOptions) Validate() error {
 
 // Run fetches the given secret manifest from the cluster, decodes the payload, opens an editor to make changes, and applies the modified manifest when done
 func (o *EvictPodOptions) Run() error {
-	err := k8s.Evict(o.kubeclient, o.podName, o.namespace)
-	if err != nil {
-		return err
+	var err error
+
+	if o.labelSelector != "" || o.fieldSelector != "" {
+		options := v1.ListOptions{LabelSelector: o.labelSelector, FieldSelector: o.fieldSelector}
+		o.podNames, err = k8s.ListPods(o.kubeclient, o.namespace, options)
+		if err != nil {
+			return err
+		}
 	}
 
-	logrus.Infof("pod %q in namespace %s evicted successfully", o.podName, o.namespace)
+	for _, podName := range o.podNames {
+		err := k8s.Evict(o.kubeclient, podName, o.namespace)
+		if err != nil {
+			return err
+		}
+
+		logrus.Infof("pod %s in namespace %s evicted successfully", podName, o.namespace)
+	}
+
 	return nil
 }
 

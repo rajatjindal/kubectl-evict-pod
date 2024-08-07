@@ -7,6 +7,7 @@ This plugin evicts pods:
 ## Usage
 
 - evict single pod: `kubectl evict-pod <pod-name> -n <namespace>`
+- evict multiple pods: `kubectl evict-pod -n <namespace> -l app=foo`
 - show options: `kubectl evict-pod -h`
 
 ## Install
@@ -80,3 +81,7 @@ NAME                               READY   STATUS    RESTARTS   AGE
 coredns-fb8b8dccf-7ngmk            1/1     Running   0          10m
 coredns-fb8b8dccf-826fh            1/1     Running   0          11m
 ```
+
+## Development
+
+Update the code and use `go run . <args>` to test.
