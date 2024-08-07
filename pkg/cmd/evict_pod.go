@@ -11,6 +11,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"time"
 )
 
 // Version is set during build time
@@ -26,6 +27,7 @@ type EvictPodOptions struct {
 	printVersion  bool
 	labelSelector string
 	fieldSelector string
+	withRetry     bool
 }
 
 // NewEvictPodOptions provides an instance of EvictPodOptions with default values
@@ -65,8 +67,9 @@ func NewEvictCmd(streams genericclioptions.IOStreams) *cobra.Command {
 	}
 
 	cmd.Flags().BoolVar(&o.printVersion, "version", false, "prints version of plugin")
-	cmd.Flags().StringVarP(&o.labelSelector, "labelSelector", "l", "", "labelSelector to evict pods with")
-	cmd.Flags().StringVar(&o.labelSelector, "fieldSelector", "", "fieldSelector to evict pods with")
+	cmd.Flags().StringVarP(&o.labelSelector, "label-selector", "l", "", "label selector to evict pods with")
+	cmd.Flags().StringVar(&o.labelSelector, "field-selector", "", "field selector to evict pods with")
+	cmd.Flags().BoolVar(&o.withRetry, "retry", false, "retry eviction until it succeeds")
 	o.configFlags.AddFlags(cmd.Flags())
 
 	return cmd
@@ -115,15 +118,41 @@ func (o *EvictPodOptions) Run() error {
 		}
 	}
 
-	for _, podName := range o.podNames {
+	return o.retryEachElement(o.podNames, func(podName string) error {
 		err := k8s.Evict(o.kubeclient, podName, o.namespace)
 		if err != nil {
-			return err
+			logrus.Warnf("pod %s in namespace %s evicting failed", podName, o.namespace)
+		} else {
+			logrus.Infof("pod %s in namespace %s evicted successfully", podName, o.namespace)
 		}
+		return err
+	})
+}
 
-		logrus.Infof("pod %s in namespace %s evicted successfully", podName, o.namespace)
+func (o *EvictPodOptions) retryEachElement(elements []string, fn func(string) error) error {
+	if o.withRetry { // retry until every element passes
+		var failed []string
+		for {
+			for _, podName := range elements {
+				if err := fn(podName); err != nil {
+					failed = append(failed, podName)
+				}
+			}
+			if len(failed) == 0 {
+				return nil
+			} else {
+				elements = failed
+				failed = nil
+				time.Sleep(5 * time.Second)
+			}
+		}
+	} else { // just iterate once
+		for _, element := range elements {
+			if err := fn(element); err != nil {
+				return err
+			}
+		}
 	}
-
 	return nil
 }
 
