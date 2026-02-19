@@ -28,6 +28,7 @@ type EvictPodOptions struct {
 	labelSelector string
 	fieldSelector string
 	withRetry     bool
+	allPods       bool
 }
 
 // NewEvictPodOptions provides an instance of EvictPodOptions with default values
@@ -70,6 +71,7 @@ func NewEvictCmd(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd.Flags().StringVarP(&o.labelSelector, "label-selector", "l", "", "label selector to evict pods with")
 	cmd.Flags().StringVar(&o.labelSelector, "field-selector", "", "field selector to evict pods with")
 	cmd.Flags().BoolVar(&o.withRetry, "retry", false, "retry eviction until it succeeds")
+	cmd.Flags().BoolVar(&o.allPods, "all", false, "evict all pods in the namespace")
 	o.configFlags.AddFlags(cmd.Flags())
 
 	return cmd
@@ -95,12 +97,19 @@ func (o *EvictPodOptions) Complete(args []string) error {
 
 // Validate ensures that config options are correct
 func (o *EvictPodOptions) Validate() error {
-	if len(o.podNames) > 0 && (o.labelSelector != "" || o.fieldSelector != "") {
+	hasPodNames := len(o.podNames) > 0
+	hasSelectors := o.labelSelector != "" || o.fieldSelector != "" || o.allPods
+
+	if hasPodNames && hasSelectors {
 		return fmt.Errorf("pod name cannot be provided when a selector is specified")
 	}
 
-	if len(o.podNames) == 0 && o.labelSelector == "" && o.fieldSelector == "" {
+	if !hasPodNames && !hasSelectors {
 		return fmt.Errorf("nothing given to select pods")
+	}
+
+	if o.allPods && (o.labelSelector != "" || o.fieldSelector != "") {
+		return fmt.Errorf("--all cannot be used with label or field selectors")
 	}
 
 	return nil
@@ -108,10 +117,9 @@ func (o *EvictPodOptions) Validate() error {
 
 // Run fetches the given secret manifest from the cluster, decodes the payload, opens an editor to make changes, and applies the modified manifest when done
 func (o *EvictPodOptions) Run() error {
-	var err error
-
-	if o.labelSelector != "" || o.fieldSelector != "" {
+	if o.labelSelector != "" || o.fieldSelector != "" || o.allPods {
 		options := v1.ListOptions{LabelSelector: o.labelSelector, FieldSelector: o.fieldSelector}
+		var err error
 		o.podNames, err = k8s.ListPods(o.kubeclient, o.namespace, options)
 		if err != nil {
 			return err
