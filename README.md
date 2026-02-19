@@ -8,6 +8,7 @@ This plugin evicts pods:
 
 - evict single pod: `kubectl evict-pod <pod-name> -n <namespace>`
 - evict multiple pods: `kubectl evict-pod -n <namespace> -l app=foo`
+- evict all pods: `kubectl evict-pod -n <namespace> --all`
 - evict multiple pods until every one is gone: `kubectl evict-pod -n <namespace> -l app=foo --retry`
 - show options: `kubectl evict-pod -h`
 
