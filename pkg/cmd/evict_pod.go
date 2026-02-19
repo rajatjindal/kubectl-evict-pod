@@ -4,14 +4,15 @@ import (
 	"fmt"
 	"os"
 
+	"time"
+
 	"github.com/rajatjindal/kubectl-evict-pod/pkg/k8s"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
-	"time"
 )
 
 // Version is set during build time
