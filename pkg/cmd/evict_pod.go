@@ -9,6 +9,7 @@ import (
 	"github.com/rajatjindal/kubectl-evict-pod/pkg/k8s"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
@@ -130,7 +131,7 @@ func (o *EvictPodOptions) Run() error {
 	return o.retryEachElement(o.podNames, func(podName string) error {
 		err := k8s.Evict(o.kubeclient, podName, o.namespace)
 		if err != nil {
-			logrus.Warnf("pod %s in namespace %s evicting failed", podName, o.namespace)
+			logrus.Warnf("pod %s in namespace %s evicting failed: %s", podName, o.namespace, o.evictError(err))
 		} else {
 			logrus.Infof("pod %s in namespace %s evicted successfully", podName, o.namespace)
 		}
@@ -163,6 +164,15 @@ func (o *EvictPodOptions) retryEachElement(elements []string, fn func(string) er
 		}
 	}
 	return nil
+}
+
+// evictError returns the API error message, suggesting --retry when the failure is likely transient
+func (o *EvictPodOptions) evictError(err error) string {
+	// eviction subresource returns 429 for PodDisruptionBudget violations and rate limiting, both worth retrying
+	if apierrors.IsTooManyRequests(err) && !o.withRetry {
+		return fmt.Sprintf("%s (retry with --retry)", err)
+	}
+	return err.Error()
 }
 
 // getNamespace takes a set of kubectl flag values and returns the namespace we should be operating in
