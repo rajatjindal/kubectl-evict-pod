@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -155,14 +156,15 @@ func (o *EvictPodOptions) retryEachElement(elements []string, fn func(string) er
 				time.Sleep(5 * time.Second)
 			}
 		}
-	} else { // just iterate once
+	} else { // attempt every element once, report all failures at the end
+		var errs []error
 		for _, element := range elements {
 			if err := fn(element); err != nil {
-				return err
+				errs = append(errs, fmt.Errorf("%s: %w", element, err))
 			}
 		}
+		return errors.Join(errs...)
 	}
-	return nil
 }
 
 // getNamespace takes a set of kubectl flag values and returns the namespace we should be operating in
